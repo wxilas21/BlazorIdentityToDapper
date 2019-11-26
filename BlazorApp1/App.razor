@@ -1,0 +1,30 @@
+﻿<Router AppAssembly="@typeof(Program).Assembly">
+    <Found Context="routeData">
+        <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+    </Found>
+    <NotFound>
+        <CascadingAuthenticationState>
+            <LayoutView Layout="@typeof(MainLayout)">
+                <p>Sorry, there's nothing at this address.</p>
+            </LayoutView>
+        </CascadingAuthenticationState>
+    </NotFound>
+</Router>
+
+@*AuthorizeRouteView page 에 Authorize 속성을 부여 했다면 제대로 동작되게 하기위해서 필요한 Tag 입니다.*@
+@*CascadingAuthenticationState Page 에 Attibute Authorize 속성을 사용 안하고 AuthorizeView Tag 만 사용하고 싶다면 해당 태그만 사용해도 됩니다.*@
+
+@*차이를 느낄려면 위 주석 걸고 밑에를 주석 풀고 테스트 해보면 됩니다.*@
+
+@*<CascadingAuthenticationState>
+        <Router AppAssembly="@typeof(Program).Assembly">
+            <Found Context="routeData">
+                <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+            </Found>
+            <NotFound>
+                <LayoutView Layout="@typeof(MainLayout)">
+                    <p>Sorry, there's nothing at this address.</p>
+                </LayoutView>
+            </NotFound>
+        </Router>
+    </CascadingAuthenticationState>*@

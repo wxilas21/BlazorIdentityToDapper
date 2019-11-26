@@ -1,0 +1,172 @@
+﻿@page "/rolegrant"
+@attribute [Authorize(Policy = "RequireAdminClaim")]
+@using Microsoft.AspNetCore.Identity
+@inject BlazorApp1.Stores.RoleStore RoleStore
+@inject UserManager<Models.ApplicationUser> UserManager
+
+@if (null != ApplicationRoles)
+{
+    <table style="width:100%;">
+        <thead>
+            <tr>
+                <th>Name</th>
+                @foreach (var role in ApplicationRoles)
+                {
+                    <th>@role.Name</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                @if (null != Users)
+                {
+                    foreach (var user in Users)
+                    {
+                        <tb>@user.UserName</tb>
+                        foreach (var role in ApplicationRoles)
+                        {
+                            <tb><input type="checkbox" @bind="(UserRoles[user.UserName].Find(match => match.RoleName.CompareTo(role.Name) == 0).CompareBool)" /></tb>
+                        }
+                    }
+                }
+            </tr>
+        </tbody>
+    </table>
+}
+
+<div class="form-group">
+    <p hidden="@(!ShowHidden)">@HiddenValue</p>
+    Role Name : <input type="text" @bind="UserName" />
+    <button @onclick="FindUser">Find GmUser</button>
+    <button @onclick="AllGmUser">All GmUser</button>
+    <button @onclick="GmUserRoleUpdate">Role Update</button>
+</div>
+
+@code {
+    public class TT
+    {
+        public string RoleName { get; set; }
+        public bool OriginBool { get; set; }
+        public bool CompareBool { get; set; }
+
+    }
+
+    protected List<Models.ApplicationRole> ApplicationRoles;
+    protected List<Models.ApplicationUser> Users;
+    protected Dictionary<string, List<TT>> UserRoles = new Dictionary<string, List<TT>>();
+    protected Models.ApplicationUser User;
+
+    public string HiddenValue { get; set; } = "";
+    public bool ShowHidden { get; set; } = false;
+
+    public bool checkboxed { get; set; } = true;
+
+    public string UserName { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        ApplicationRoles = (await RoleStore.FetchRolesAsync(System.Threading.CancellationToken.None)).ToList();
+    }
+
+    public void AllGmUser(MouseEventArgs e)
+    {
+        User = null;
+        Users = UserManager.Users.ToList();
+        UserRoles.Clear();
+        foreach(var user in Users)
+        {
+            FindUserRole(user);
+        }
+    }
+
+    public void FindUserRole(Models.ApplicationUser applicationUser)
+    {
+        if(false == UserRoles.ContainsKey(applicationUser.UserName))
+        {
+            UserRoles.Add(applicationUser.UserName, new List<TT>());
+        }
+
+        IList<string> userRoles = UserManager.GetRolesAsync(applicationUser).ConfigureAwait(false).GetAwaiter().GetResult();
+        foreach(var role in userRoles)
+        {
+            var tuple = UserRoles[applicationUser.UserName].Find(match => match.RoleName.CompareTo(role) == 0);
+            if(null == tuple)
+            {
+                UserRoles[applicationUser.UserName].Add(new TT
+                {
+                    RoleName = role,
+                    OriginBool = true,
+                    CompareBool = true
+                });
+            }
+            else
+            {
+                UserRoles[applicationUser.UserName].Remove(tuple);
+                UserRoles[applicationUser.UserName].Add(new TT
+                {
+                    RoleName = role,
+                    OriginBool = true,
+                    CompareBool = true
+                });
+            }
+        }
+
+        foreach(var role in ApplicationRoles)
+        {
+            if(null == UserRoles[applicationUser.UserName].Find(match => match.RoleName.CompareTo(role.Name) == 0))
+            {
+                UserRoles[applicationUser.UserName].Add(new TT
+                {
+                    RoleName = role.Name,
+                    OriginBool = false,
+                    CompareBool = false
+                });
+            }
+        }
+    }
+
+    public void GmUserRoleUpdate(MouseEventArgs e)
+    {
+        if(null != Users)
+        {
+            foreach(var user in Users)
+            {
+                if(true == UserRoles.ContainsKey(user.UserName))
+                {
+                    var d = UserRoles[user.UserName];
+                    foreach(var role in d)
+                    {
+                        //  Create
+                        if(true == role.CompareBool &&
+                            false == role.OriginBool)
+                        {
+                            UserManager.AddToRoleAsync(user, role.RoleName);
+                        }
+                        //  Delete
+                        else if(false == role.CompareBool &&
+                            true == role.OriginBool)
+                        {
+                            UserManager.RemoveFromRoleAsync(user, role.RoleName);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public async Task FindUser(MouseEventArgs e)
+    {
+        if(false == string.IsNullOrEmpty(UserName))
+        {
+            Users = null;
+            UserRoles.Clear();
+            User = await UserManager.FindByNameAsync(UserName);
+            if(null != User)
+            {
+                Users = new List<Models.ApplicationUser>();
+                Users.Add(User);
+                FindUserRole(User);
+            }
+        }
+    }
+}

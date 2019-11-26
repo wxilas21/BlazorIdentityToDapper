@@ -1,0 +1,8 @@
+﻿@page "/"
+@using Microsoft.Extensions.Configuration
+@inject IConfiguration Configuration
+@attribute [Authorize]
+
+<h1 align="center">@Configuration.GetValue("Title", "Blazor")</h1>
+
+<p align="center">Welcome to your new app.</p>

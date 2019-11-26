@@ -1,0 +1,130 @@
+﻿@page "/rolecreate"
+@attribute [Authorize(Policy = "RequireAdminClaim")]
+@using Microsoft.AspNetCore.Identity
+@inject BlazorApp1.Stores.RoleStore RoleStore
+@inject UserManager<Models.ApplicationUser> UserManager
+
+@if (null == ApplicationRoles)
+{
+    <p>Empty Role</p>
+}
+else
+{
+    <table style="width:100%;">
+        <thead>
+            <tr>
+                <th>RoleId</th>
+                <th>Name</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var applicationRole in ApplicationRoles)
+            {
+                <tr>
+                    <td>@applicationRole.RoleId</td>
+                    <td>@applicationRole.Name</td>
+                    @if (applicationRole.Name.ToLower().CompareTo("administrator") != 0)
+                    {
+                        <td><button @onclick="(async (e)=> await RoleDelete(applicationRole.RoleId))">Role Delete</button></td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<div class="form-group">
+    <p hidden="@(!ShowHidden)">@HiddenValue</p>
+    Role Name : <input type="text" @bind="RoleName" />
+    <button @onclick="RoleRegister">Role Registration</button>
+</div>
+
+@code {
+    System.Collections.Generic.List<BlazorApp1.Models.ApplicationRole> ApplicationRoles;
+
+    public string RoleName { get; set; }
+
+    public string HiddenValue { get; set; } = "";
+
+    public bool ShowHidden { get; set; } = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        ApplicationRoles = (await RoleStore.FetchRolesAsync(System.Threading.CancellationToken.None)).ToList();
+    }
+
+    public async Task RoleRegister(MouseEventArgs e)
+    {
+        if (false == string.IsNullOrEmpty(RoleName))
+        {
+            var role = await RoleStore.FindByNameAsync(RoleName.ToUpper(), System.Threading.CancellationToken.None);
+            if (null != role)
+            {
+                ShowHidden = true;
+                HiddenValue = "Already Role Name";
+            }
+            else
+            {
+                role = new Models.ApplicationRole();
+                await RoleStore.SetRoleNameAsync(role, RoleName, System.Threading.CancellationToken.None);
+                await RoleStore.SetNormalizedRoleNameAsync(role, RoleName.ToUpper(), System.Threading.CancellationToken.None);
+                var result = await RoleStore.CreateAsync(role, System.Threading.CancellationToken.None);
+                if (false == result.Succeeded)
+                {
+                    ShowHidden = true;
+                    foreach (var error in result.Errors)
+                    {
+                        HiddenValue += $"{error.Description}{Environment.NewLine}";
+                    }
+                }
+                else
+                {
+                    RoleName = string.Empty;
+                    ShowHidden = false;
+                    HiddenValue = string.Empty;
+                    if (null == ApplicationRoles)
+                    {
+                        ApplicationRoles = new System.Collections.Generic.List<BlazorApp1.Models.ApplicationRole>();
+                    }
+
+                    ApplicationRoles.Add(role);
+                }
+            }
+        }
+        else
+        {
+            ShowHidden = true;
+            HiddenValue = "Role Name Required";
+        }
+    }
+
+    public async Task RoleDelete(int roleId)
+    {
+        var role = await RoleStore.FindByIdAsync(roleId.ToString(), System.Threading.CancellationToken.None);
+        if (null != role)
+        {
+            if (0 != role.Name.ToLower().CompareTo("administrator"))
+            {
+                var users = await UserManager.GetUsersInRoleAsync(role.Name);
+
+                foreach(var user in users)
+                {
+                    await UserManager.RemoveFromRoleAsync(user, role.Name);
+                }
+
+                var result = await RoleStore.DeleteAsync(role, System.Threading.CancellationToken.None);
+                if (result.Succeeded)
+                {
+                    if (null != ApplicationRoles)
+                    {
+                        var findRole = ApplicationRoles.Find(match => match.RoleId == role.RoleId);
+                        if (null != findRole)
+                        {
+                            ApplicationRoles.Remove(findRole);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

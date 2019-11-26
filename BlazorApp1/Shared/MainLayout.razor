@@ -1,0 +1,35 @@
+﻿@inherits LayoutComponentBase
+@*@inject IAuthorizationService AuthorizationService*@
+@inject NavigationManager NavigationManager
+
+<div class="sidebar">
+    <NavMenu />
+</div>
+
+<div class="main">
+    <div class="top-row px-4">
+        <LoginDisplay />
+        @*<a href="https://docs.microsoft.com/en-us/aspnet/" target="_blank">About</a>*@
+    </div>
+
+    <div class="content px-4">
+        @Body
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = (await authenticationStateTask).User;
+
+        //  Redirect if you are not authenticated.
+        if (false == user.Identity.IsAuthenticated)
+        {
+            NavigationManager.NavigateTo("login", forceLoad: true);
+        }
+    }
+}
